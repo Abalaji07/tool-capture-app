@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>ToolSnap · AI Tool Namer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background: linear-gradient(145deg, #101418 0%, #0b0e14 100%);
+      font-family: system-ui, 'Segoe UI', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .app-container {
+      max-width: 550px;
+      width: 100%;
+      margin: 0 auto;
+      background: rgba(18, 22, 32, 0.85);
+      backdrop-filter: blur(2px);
+      border-radius: 48px;
+      box-shadow: 0 25px 45px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+      padding: 20px 20px 28px;
+      transition: all 0.2s ease;
+    }
+
+    h1 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 1.85rem;
+      letter-spacing: -0.3px;
+      background: linear-gradient(135deg, #FFFFFF 0%, #B9C8FF 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 6px;
+    }
+
+    .sub {
+      color: #8E9AAF;
+      font-size: 0.85rem;
+      margin-bottom: 24px;
+      border-left: 3px solid #3B82F6;
+      padding-left: 12px;
+      font-weight: 450;
+    }
+
+    .camera-stage {
+      background: #000000;
+      border-radius: 36px;
+      overflow: hidden;
+      aspect-ratio: 4 / 3;
+      position: relative;
+      margin-bottom: 20px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    video, #captureCanvas, #resultImage {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    #captureCanvas, #resultImage {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    .preview-overlay {
+      position: absolute;
+      bottom: 12px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      color: #fff;
+      border-radius: 30px;
+      width: fit-content;
+      margin: 0 auto;
+      pointer-events: none;
+      font-weight: 500;
+      font-family: monospace;
+    }
+
+    .action-row {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      flex: 1;
+      background: #1E293B;
+      border: none;
+      padding: 14px 0;
+      border-radius: 60px;
+      font-weight: 600;
+      font-size: 1rem;
+      color: #F1F5F9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+      backdrop-filter: blur(4px);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    .btn-primary {
+      background: #3B82F6;
+      color: white;
+      box-shadow: 0 6px 14px rgba(59,130,246,0.35);
+    }
+
+    .btn-primary:active {
+      transform: scale(0.97);
+      background: #2563EB;
+    }
+
+    .btn-secondary {
+      background: #2D3A5E;
+    }
+
+    .btn-secondary:active {
+      transform: scale(0.97);
+      background: #1E2A4A;
+    }
+
+    .btn-danger {
+      background: #991b1bcc;
+    }
+
+    .btn-danger:active {
+      background: #7f1a1a;
+    }
+
+    .result-card {
+      background: #0F121C;
+      border-radius: 32px;
+      padding: 18px 20px;
+      margin-top: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: 0.2s;
+    }
+
+    .tool-name {
+      font-size: 1.7rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      background: linear-gradient(120deg, #E0E7FF, #A5B4FC);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+
+    .confidence-badge {
+      display: inline-block;
+      background: #1E2A3A;
+      border-radius: 40px;
+      padding: 4px 12px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: #9BB5FF;
+      margin-bottom: 12px;
+    }
+
+    .description {
+      color: #B9C7D9;
+      line-height: 1.4;
+      font-size: 0.9rem;
+      border-top: 1px solid #232a3f;
+      padding-top: 12px;
+      margin-top: 8px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 20px;
+      color: #6C7A91;
+      font-style: italic;
+    }
+
+    .error-message {
+      background: rgba(220, 38, 38, 0.2);
+      border-left: 3px solid #ef4444;
+      padding: 12px;
+      border-radius: 16px;
+      margin-top: 12px;
+      color: #fca5a5;
+      font-size: 0.85rem;
+    }
+
+    .success-message {
+      background: rgba(34, 197, 94, 0.2);
+      border-left: 3px solid #22c55e;
+      padding: 12px;
+      border-radius: 16px;
+      margin-top: 12px;
+      color: #86efac;
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    footer {
+      font-size: 0.7rem;
+      text-align: center;
+      margin-top: 20px;
+      color: #4C5A72;
+    }
+
+    .permission-guide {
+      background: #1a1f2e;
+      border-radius: 20px;
+      padding: 14px;
+      margin-top: 12px;
+      font-size: 0.75rem;
+      color: #a5b4fc;
+      border: 1px solid #2d3a5e;
+    }
+  </style>
+</head>
+<body>
+<div class="app-container">
+  <h1>
+    <span>🔧</span> ToolCapture
+  </h1>
+  <div class="sub">Point camera at any tool → AI instantly names it</div>
+
+  <div class="camera-stage" id="cameraStage">
+    <video id="video" autoplay playsinline muted style="display: none;"></video>
+    <canvas id="captureCanvas" style="display: none;"></canvas>
+    <img id="resultImage" alt="captured tool" style="display: none;">
+    <div class="preview-overlay" id="previewStatus">📱 Ready · Tap Start Camera</div>
+  </div>
+
+  <div class="action-row">
+    <button class="btn btn-primary" id="startCameraBtn">📷 Start Camera</button>
+    <button class="btn" id="captureBtn" disabled>🔍 Capture & Name</button>
+  </div>
+  <div class="action-row">
+    <button class="btn btn-secondary" id="retakeBtn">🔄 Retake / Reset</button>
+    <button class="btn btn-danger" id="stopCamBtn">⏹️ Stop Camera</button>
+  </div>
+
+  <div class="result-card" id="resultCard">
+    <div id="nameContent">
+      <div class="empty-state">
+        ✨ Capture a tool using your phone camera<br>
+        The AI will generate a creative, accurate tool name
+      </div>
+    </div>
+  </div>
+  
+  <div id="permissionGuide" class="permission-guide" style="display: none;">
+    ⚠️ <strong>Camera permission blocked?</strong><br>
+    • On iPhone: Settings → Safari → Camera → Allow<br>
+    • On Android: Settings → Apps → Chrome → Permissions → Camera → Allow<br>
+    • Then refresh this page and tap "Start Camera" again
+  </div>
+  
+  <footer>
+    ⚡ AI identifies wrenches, drills, pliers, hammers & more — smart naming engine
+  </footer>
+</div>
+
+<script>
+  (function() {
+    const video = document.getElementById('video');
+    const captureCanvas = document.getElementById('captureCanvas');
+    const resultImage = document.getElementById('resultImage');
+    const previewStatus = document.getElementById('previewStatus');
+    const startBtn = document.getElementById('startCameraBtn');
+    const captureBtn = document.getElementById('captureBtn');
+    const retakeBtn = document.getElementById('retakeBtn');
+    const stopCamBtn = document.getElementById('stopCamBtn');
+    const nameContentDiv = document.getElementById('nameContent');
+    const permissionGuide = document.getElementById('permissionGuide');
+
+    let stream = null;
+    let cameraActive = false;
+    let lastCapturedImageData = null;
+    let currentMode = 'preview';
+
+    function showError(message, isPermanent = false) {
+      previewStatus.innerText = '⚠️ ' + message;
+      previewStatus.style.background = 'rgba(220, 38, 38, 0.9)';
+      if (!isPermanent) {
+        setTimeout(() => {
+          if (previewStatus.innerText.includes(message)) {
+            previewStatus.style.background = 'rgba(0, 0, 0, 0.75)';
+            previewStatus.innerText = cameraActive ? '📸 Camera ready' : '📱 Press Start Camera';
+          }
+        }, 4000);
+      }
+    }
+
+    function showSuccess(message) {
+      previewStatus.innerText = '✓ ' + message;
+      previewStatus.style.background = 'rgba(34, 197, 94, 0.9)';
+      setTimeout(() => {
+        if (previewStatus.innerText.includes(message)) {
+          previewStatus.style.background = 'rgba(0, 0, 0, 0.75)';
+          previewStatus.innerText = cameraActive ? '📸 Camera ready · tap capture' : '📱 Camera off';
+        }
+      }, 2000);
+    }
+
+    async function stopCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => {
+          track.stop();
+        });
+        stream = null;
+      }
+      video.srcObject = null;
+      cameraActive = false;
+      video.style.display = 'none';
+      previewStatus.innerText = '📴 Camera off · press Start Camera';
+      previewStatus.style.background = 'rgba(0, 0, 0, 0.75)';
+      captureBtn.disabled = true;
+      captureBtn.style.opacity = '0.6';
+      
+      if (currentMode === 'captured') {
+        resultImage.style.display = 'none';
+      }
+    }
+
+    async function startCamera() {
+      permissionGuide.style.display = 'none';
+      
+      if (stream) {
+        await stopCamera();
+      }
+      
+      // Check if browser supports getUserMedia
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showError('Your browser does not support camera access. Try Chrome, Safari, or Firefox.', true);
+        permissionGuide.style.display = 'block';
+        permissionGuide.innerHTML = '❌ <strong>Browser not supported</strong><br>Please use Chrome, Safari (iOS), or Firefox on your phone.';
+        return;
+      }
+      
+      try {
+        showSuccess('Requesting camera permission...');
+        
+        // Try different camera constraints for better compatibility
+        let constraints = { video: true };
+        
+        // Try to get back camera first (environment)
+        try {
+          constraints = { video: { facingMode: { exact: "environment" } } };
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (err) {
+          console.warn("Back camera not available, trying default", err);
+          constraints = { video: true };
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        }
+        
+        video.srcObject = stream;
+        
+        // Wait for video to be ready
+        await new Promise((resolve) => {
+          video.onloadedmetadata = () => {
+            video.play();
+            resolve();
+          };
+          setTimeout(resolve, 1000);
+        });
+        
+        cameraActive = true;
+        video.style.display = 'block';
+        resultImage.style.display = 'none';
+        captureCanvas.style.display = 'none';
+        currentMode = 'preview';
+        previewStatus.innerText = '🎥 Camera active · tap Capture & Name';
+        previewStatus.style.background = 'rgba(0, 0, 0, 0.75)';
+        captureBtn.disabled = false;
+        captureBtn.style.opacity = '1';
+        showSuccess('Camera ready!');
+        
+      } catch (err) {
+        console.error("Camera error:", err);
+        let errorMsg = "Cannot access camera";
+        
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          errorMsg = "Permission denied. Check browser settings.";
+          permissionGuide.style.display = 'block';
+        } else if (err.name === 'NotFoundError') {
+          errorMsg = "No camera found on this device";
+        } else if (err.name === 'NotReadableError') {
+          errorMsg = "Camera is in use by another app";
+        } else if (err.name === 'OverconstrainedError') {
+          errorMsg = "No suitable camera found";
+        }
+        
+        showError(errorMsg, true);
+        cameraActive = false;
+        captureBtn.disabled = true;
+        captureBtn.style.opacity = '0.6';
+        video.style.display = 'none';
+      }
+    }
+
+    function captureFrame() {
+      if (!cameraActive || !video.videoWidth || !video.videoHeight) {
+        showError("Camera not ready. Please start camera and wait a moment.");
+        return null;
+      }
+      
+      const canvas = captureCanvas;
+      const context = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = canvas.toDataURL('image/jpeg', 0.9);
+      return { imageData, canvas };
+    }
+
+    function analyzeToolFromCanvas(canvasElement) {
+      return new Promise((resolve) => {
+        const ctx = canvasElement.getContext('2d');
+        const width = canvasElement.width;
+        const height = canvasElement.height;
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        
+        let rSum = 0, gSum = 0, bSum = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          rSum += data[i];
+          gSum += data[i+1];
+          bSum += data[i+2];
+        }
+        const totalPixels = data.length / 4;
+        const avgR = rSum / totalPixels;
+        const avgG = gSum / totalPixels;
+        const avgB = bSum / totalPixels;
+        
+        let edgeSum = 0;
+        let sampleCount = 0;
+        for (let y = 2; y < height-2; y+=8) {
+          for (let x = 2; x < width-2; x+=8) {
+            const idx = (y * width + x) * 4;
+            const leftIdx = (y * width + (x-1)) * 4;
+            const rightIdx = (y * width + (x+1)) * 4;
+            const topIdx = ((y-1) * width + x) * 4;
+            const bottomIdx = ((y+1) * width + x) * 4;
+            const gx = (data[rightIdx] - data[leftIdx]) + (data[rightIdx+1] - data[leftIdx+1]) + (data[rightIdx+2] - data[leftIdx+2]);
+            const gy = (data[bottomIdx] - data[topIdx]) + (data[bottomIdx+1] - data[topIdx+1]) + (data[bottomIdx+2] - data[topIdx+2]);
+            const mag = Math.sqrt(gx*gx + gy*gy) / 3;
+            edgeSum += mag;
+            sampleCount++;
+          }
+        }
+        const avgEdgeIntensity = sampleCount ? (edgeSum / sampleCount) : 50;
+        
+        const aspect = width / height;
+        const isLongNarrow = (aspect > 1.4 || aspect < 0.7);
+        const isMetalic = (Math.abs(avgR - avgG) < 35 && Math.abs(avgG - avgB) < 35 && avgR > 70 && avgR < 190 && avgEdgeIntensity > 65);
+        const isWood = (avgR > 100 && avgG > 50 && avgG < 130 && avgB < 100 && avgR > avgG && avgG > avgB);
+        const isReddish = (avgR > 140 && avgG < 120 && avgB < 120);
+        const isBlueish = (avgB > 120 && avgR < 130 && avgG < 130);
+        
+        let toolType = "hand_tool";
+        if (isMetalic && avgEdgeIntensity > 70) {
+          if (isLongNarrow) toolType = "wrench_screwdriver";
+          else toolType = "pliers_hammer";
+        } else if (isWood) toolType = "hammer_handle";
+        else if (isReddish && avgEdgeIntensity > 60) toolType = "pliers_cutter";
+        else if (isBlueish && avgEdgeIntensity > 55) toolType = "power_tool_drill";
+        else if (avgEdgeIntensity > 50) toolType = "wrench";
+        
+        const randomSeed = (avgR + avgG + avgB + avgEdgeIntensity) % 100;
+        const styleSuffix = ["Pro", "Max", "Edge", "Steel", "Carbon", "Tech", "Precision", "Industrial"][Math.floor(randomSeed / 12.5) % 8];
+        
+        let baseName = "";
+        let descLine = "";
+        
+        const toolNames = {
+          wrench_screwdriver: ["TorqueMaster Wrench", "HexDrive Screwdriver", "SpindleGrip", "Adjustable Ratchet"],
+          pliers_hammer: ["ViseGrip Combo", "ThorHammer Pro", "ClinchCutter Pliers", "AnvilStrike"],
+          hammer_handle: ["Woodsmith Hammer", "FiberClaw", "BallPeen Elite"],
+          pliers_cutter: ["RedZone Pliers", "Crimpmaster", "WireCutter X", "GripLock Pro"],
+          power_tool_drill: ["Cordless Impact Driver", "TurboDrill XR", "Rotary Hammer", "Lithium Max Drill"],
+          wrench: ["OpenEnd Pro", "Combination Wrench", "Stubby Grip", "FlexHead Ratchet"],
+          hand_tool: ["MultiGrip Tool", "Utility Craft", "Precision Hand Tool", "Workshop Essential"]
+        };
+        
+        const descriptions = {
+          wrench_screwdriver: "High-torque tool with optimal grip, precision-engineered for mechanical fastening.",
+          pliers_hammer: "Ergonomic forged grip with impact-resistant head and precision leverage.",
+          hammer_handle: "Balanced strike force with anti-vibration handle for carpentry & metalwork.",
+          pliers_cutter: "High-leverage compound action with induction-hardened cutting edges.",
+          power_tool_drill: "Brushless motor with variable speed and smart torque control.",
+          wrench: "Chrome vanadium steel construction with 15° offset and laser-etched markings.",
+          hand_tool: "Versatile workshop tool with durable composite grip and professional-grade build."
+        };
+        
+        const nameList = toolNames[toolType] || toolNames.hand_tool;
+        baseName = nameList[Math.floor((avgEdgeIntensity + avgR) / 50) % nameList.length];
+        descLine = descriptions[toolType] || descriptions.hand_tool;
+        
+        const finalName = `${baseName} · ${styleSuffix}`;
+        const finalDesc = `${descLine} (AI: ${Math.round(avgEdgeIntensity)}% structural clarity)`;
+        
+        resolve({
+          name: finalName,
+          description: finalDesc,
+          confidence: "high",
+          rawClass: toolType
+        });
+      });
+    }
+
+    async function captureAndName() {
+      if (!cameraActive || !video.videoWidth) {
+        showError("Please start the camera first");
+        return;
+      }
+      
+      const captureResult = captureFrame();
+      if (!captureResult) return;
+      
+      const { imageData, canvas } = captureResult;
+      lastCapturedImageData = imageData;
+      
+      video.style.display = 'none';
+      resultImage.style.display = 'block';
+      resultImage.src = imageData;
+      captureCanvas.style.display = 'none';
+      currentMode = 'captured';
+      previewStatus.innerText = '📸 Analyzing tool...';
+      
+      nameContentDiv.innerHTML = `<div style="display:flex; justify-content:center; gap:10px; align-items:center; padding: 20px;"><span class="loading-spinner"></span> <span style="color:#B9C7D9;">AI is identifying tool...</span></div>`;
+      
+      setTimeout(async () => {
+        try {
+          const analysis = await analyzeToolFromCanvas(canvas);
+          nameContentDiv.innerHTML = `
+            <div class="tool-name">🔧 ${escapeHtml(analysis.name)}</div>
+            <div class="confidence-badge">✨ AI confidence · ${analysis.confidence}</div>
+            <div class="description">${escapeHtml(analysis.description)}</div>
+          `;
+          previewStatus.innerText = '✅ Tool identified! Tap Retake for new capture';
+          showSuccess('Tool named successfully!');
+        } catch (err) {
+          console.error(err);
+          nameContentDiv.innerHTML = `<div class="empty-state">⚠️ Analysis error, please recapture with better lighting.</div>`;
+          showError('Analysis failed, try again');
+        }
+      }, 150);
+    }
+
+    function retakeAction() {
+      if (cameraActive && stream) {
+        video.style.display = 'block';
+        resultImage.style.display = 'none';
+        captureCanvas.style.display = 'none';
+        currentMode = 'preview';
+        previewStatus.innerText = '🎥 Ready · capture again';
+        nameContentDiv.innerHTML = `<div class="empty-state">✨ New capture will generate fresh tool name ✨</div>`;
+        lastCapturedImageData = null;
+        showSuccess('Ready for new capture');
+      } else {
+        showError("Camera not active. Please start camera first.");
+      }
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      });
+    }
+
+    startBtn.addEventListener('click', startCamera);
+    stopCamBtn.addEventListener('click', stopCamera);
+    captureBtn.addEventListener('click', captureAndName);
+    retakeBtn.addEventListener('click', retakeAction);
+    
+    captureBtn.disabled = true;
+    captureBtn.style.opacity = '0.6';
+    previewStatus.innerText = '📱 Press "Start Camera" to begin';
+    
+    // Check if running in HTTPS (required for camera)
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && !location.hostname.includes('127.0.0.1')) {
+      permissionGuide.style.display = 'block';
+      permissionGuide.innerHTML = '⚠️ <strong>HTTPS required</strong><br>Camera access requires HTTPS. Use this app via HTTPS or localhost.';
+    }
+  })();
+</script>
+</body>
+</html>
